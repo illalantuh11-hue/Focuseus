@@ -18,7 +18,7 @@ struct FocusTime: View {
             Text("Готово").font(.focusTimer(20, weight: .medium))
         } else {
             Text(timerInterval: state.start...state.end, countsDown: true)
-                .font(.focusTimer(34, weight: .medium))
+                .font(.focusTimer(32, weight: .medium)) // Чуть уменьшили, чтобы влезло в дугу
                 .monospacedDigit()
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white)
@@ -26,12 +26,12 @@ struct FocusTime: View {
     }
 }
 
-// === Форма широкой дуги ===
+// === Форма дуги (сделали чуть менее пологой) ===
 struct WideArcShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let center = CGPoint(x: rect.midX, y: rect.maxY + 30)
-        let radius = min(rect.width / 2, rect.height + 30)
+        let center = CGPoint(x: rect.midX, y: rect.maxY + 15) // Уменьшили смещение
+        let radius = min(rect.width / 2, rect.height + 15)
         
         path.addArc(center: center, radius: radius,
                     startAngle: .degrees(180), endAngle: .degrees(0),
@@ -48,21 +48,21 @@ struct WideArcProgress: View {
         GeometryReader { geo in
             let width = geo.size.width
             let height = geo.size.height
-            let radius = min(width / 2, height + 30)
-            let centerY = height + 30
+            let radius = min(width / 2, height + 15)
+            let centerY = height + 15
             
             ZStack {
                 WideArcShape()
-                    .stroke(Color.white.opacity(0.2), style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .stroke(Color.white.opacity(0.2), style: StrokeStyle(lineWidth: 6, lineCap: .round)) // Сделали потоньше (6)
                 
                 WideArcShape()
                     .trim(from: 0, to: progress)
-                    .stroke(Color.white, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .stroke(Color.white, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                 
                 if !isStale && progress > 0.02 && progress < 0.98 {
                     Circle()
                         .fill(Color.white)
-                        .frame(width: 12, height: 12)
+                        .frame(width: 10, height: 10)
                         .position(markerPosition(width: width, centerY: centerY, radius: radius))
                 }
             }
@@ -125,7 +125,6 @@ struct ThickRing: View {
 struct FocusLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FocusAttributes.self) { context in
-            // Экран блокировки
             HStack(spacing: 14) {
                 FocusIcon(kind: context.state.kind, size: 24)
                 FocusTime(state: context.state, stale: context.isStale)
@@ -157,17 +156,18 @@ struct FocusLiveActivity: Widget {
                     EmptyView()
                 }
                 
+                // ── НИЗ: Поднимаем дугу и таймер ──
                 DynamicIslandExpandedRegion(.bottom) {
                     ZStack(alignment: .bottom) {
                         WideArcProgress(state: context.state, isStale: context.isStale)
-                            .frame(height: 40)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 4)
+                            .frame(height: 24) // Уменьшили высоту, чтобы не обрезалась
+                            .padding(.horizontal, 24) // Чуть сузили по бокам
+                            .offset(y: -12) // ПОДНЯЛИ ДУГУ ВЫШЕ
                         
                         FocusTime(state: context.state, stale: context.isStale)
-                            .offset(y: -2)
+                            .offset(y: 2) // Таймер чуть ниже центра дуги
                     }
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 4)
                 }
             } compactLeading: {
                 FocusIcon(kind: context.state.kind, size: 18)
