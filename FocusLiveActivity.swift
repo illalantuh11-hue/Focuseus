@@ -26,32 +26,34 @@ struct FocusTime: View {
     }
 }
 
-// === Дуга (полукруг) для expanded ===
+// === ПРАВИЛЬНАЯ ДУГА ДЛЯ EXPANDED ===
 struct ExpandedArc: View {
     let state: FocusState
     let isStale: Bool
 
     var body: some View {
         ZStack {
+            // Фоновая дуга (серая)
             ArcShape()
-                .stroke(Color.white.opacity(0.25),
-                        style: StrokeStyle(lineWidth: 5, lineCap: .round))
-            ArcShape()
-                .trim(from: 0, to: progress)
-                .stroke(neon, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                .softNeon(6)
-        }
-    }
+                .stroke(Color.white.opacity(0.25), style: StrokeStyle(lineWidth: 5, lineCap: .round))
 
-    private var progress: CGFloat {
-        if isStale { return 1 }
-        let total = state.end.timeIntervalSince(state.start)
-        guard total > 0 else { return 0 }
-        let remaining = max(0, state.end.timeIntervalSinceNow)
-        return CGFloat(1 - remaining / total) // заполняется слева направо
+            // Системный прогресс, который плавно двигается сам
+            ProgressView(timerInterval: state.start...state.end, countsDown: false) {
+                EmptyView()
+            } currentValueLabel: {
+                EmptyView()
+            }
+            .progressViewStyle(.circular)
+            .tint(neon)
+            .frame(width: 60, height: 60) // Размер будет обрезан маской
+            .scaleEffect(1.0)
+            .mask(ArcShape().stroke(style: StrokeStyle(lineWidth: 5, lineCap: .round)))
+            .softNeon(6)
+        }
     }
 }
 
+// Форма дуги (полукруг)
 struct ArcShape: Shape {
     func path(in rect: CGRect) -> Path {
         var p = Path()
@@ -74,19 +76,6 @@ struct FocusIcon: View {
     }
 }
 
-struct FocusRing: View {
-    let state: FocusState
-    let size: CGFloat
-    var body: some View {
-        ProgressView(timerInterval: state.start...state.end, countsDown: true) {
-            EmptyView()
-        } currentValueLabel: { EmptyView() }
-        .progressViewStyle(.circular)
-        .tint(neon)
-        .frame(width: size, height: size)
-    }
-}
-
 struct RingOrCheck: View {
     let state: FocusState
     let stale: Bool
@@ -102,25 +91,39 @@ struct RingOrCheck: View {
     }
 }
 
+struct FocusRing: View {
+    let state: FocusState
+    let size: CGFloat
+    var body: some View {
+        ProgressView(timerInterval: state.start...state.end, countsDown: true) {
+            EmptyView()
+        } currentValueLabel: { EmptyView() }
+        .progressViewStyle(.circular)
+        .tint(neon)
+        .frame(width: size, height: size)
+    }
+}
+
+// === ПРАВИЛЬНОЕ ТОЛСТОЕ КОЛЬЦО ДЛЯ COMPACT ===
 struct ThickRing: View {
     let state: FocusState
     let size: CGFloat
     let lineWidth: CGFloat
+
     var body: some View {
         ZStack {
             Circle().stroke(Color.white.opacity(0.15), lineWidth: lineWidth)
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(neon, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                .rotationEffect(.degrees(-90))
+            
+            // Системный прогресс, растянутый для толщины
+            ProgressView(timerInterval: state.start...state.end, countsDown: true) {
+                EmptyView()
+            } currentValueLabel: { EmptyView() }
+            .progressViewStyle(.circular)
+            .tint(neon)
+            .frame(width: size, height: size)
+            .scaleEffect(1.0 + (lineWidth / size) * 0.8) // Растягиваем системную линию
         }
         .frame(width: size, height: size)
-    }
-    private var progress: CGFloat {
-        let total = state.end.timeIntervalSince(state.start)
-        guard total > 0 else { return 0 }
-        let remaining = max(0, state.end.timeIntervalSinceNow)
-        return CGFloat(remaining / total)
     }
 }
 
@@ -150,7 +153,6 @@ struct FocusLiveActivity: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
 
-                // ── СЛЕВА: иконка категории ──
                 DynamicIslandExpandedRegion(.leading) {
                     FocusIcon(kind: context.state.kind, size: 20)
                         .softNeon(4)
@@ -158,7 +160,6 @@ struct FocusLiveActivity: Widget {
                         .padding(.top, 2)
                 }
 
-                // ── СПРАВА: "Name" (название категории) ──
                 DynamicIslandExpandedRegion(.trailing) {
                     Text(context.state.kind.title)
                         .font(.system(size: 15, weight: .medium, design: .rounded))
@@ -167,7 +168,6 @@ struct FocusLiveActivity: Widget {
                         .padding(.top, 2)
                 }
 
-                // ── ЦЕНТР: дуга + таймер + "Fills up" ──
                 DynamicIslandExpandedRegion(.center) {
                     VStack(spacing: -6) {
                         Text("Fills up")
@@ -177,6 +177,7 @@ struct FocusLiveActivity: Widget {
                             .padding(.leading, 14)
 
                         ZStack(alignment: .bottom) {
+                            // Дуга (обрезанная маской системного прогресса)
                             ExpandedArc(state: context.state, isStale: context.isStale)
                                 .frame(height: 30)
                                 .padding(.horizontal, 6)
@@ -193,16 +194,12 @@ struct FocusLiveActivity: Widget {
                 }
 
             } compactLeading: {
-                // ── COMPACT LEFT: иконка + неон ──
-                FocusIcon(kind: context.state.kind, size: 15)
-                    .softNeon(6)
+                FocusIcon(kind: context.state.kind, size: 15).softNeon(6)
             } compactTrailing: {
-                // ── COMPACT RIGHT: утолщённое кольцо ×2 + неон ──
-                ThickRing(state: context.state, size: 22, lineWidth: 6)
-                    .softNeon(8)
+                // Толстое кольцо с системной анимацией
+                ThickRing(state: context.state, size: 22, lineWidth: 6).softNeon(8)
             } minimal: {
-                ThickRing(state: context.state, size: 20, lineWidth: 5)
-                    .softNeon(6)
+                ThickRing(state: context.state, size: 20, lineWidth: 5).softNeon(6)
             }
         }
     }
