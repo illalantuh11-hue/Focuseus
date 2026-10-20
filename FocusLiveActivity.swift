@@ -14,10 +14,10 @@ struct FocusTime: View {
 
     var body: some View {
         if stale {
-            Text("Готово").font(.focusTimer(22, weight: .medium))
+            Text("Готово").font(.focusTimer(20, weight: .medium))
         } else {
             Text(timerInterval: state.start...state.end, countsDown: true)
-                .font(.focusTimer(36, weight: .regular)) // Сделал чуть больше и плотнее
+                .font(.focusTimer(36, weight: .medium))
                 .monospacedDigit()
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white)
@@ -29,9 +29,9 @@ struct FocusTime: View {
 struct WideArcShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        // Центр берем далеко внизу, чтобы дуга была пологой (как мост)
-        let center = CGPoint(x: rect.midX, y: rect.maxY + 30)
-        let radius = min(rect.width / 2, rect.height + 30)
+        // Делаем дугу более пологой, опуская центр ниже
+        let center = CGPoint(x: rect.midX, y: rect.maxY + 35)
+        let radius = min(rect.width / 2, rect.height + 35)
         
         path.addArc(center: center, radius: radius,
                     startAngle: .degrees(180), endAngle: .degrees(0),
@@ -48,25 +48,24 @@ struct WideArcProgress: View {
         GeometryReader { geo in
             let width = geo.size.width
             let height = geo.size.height
-            // Вычисляем радиус и угол для позиции белой точки
-            let radius = min(width / 2, height + 30)
-            let centerY = height + 30
+            let radius = min(width / 2, height + 35)
+            let centerY = height + 35
             
             ZStack {
-                // 1. Темно-серая подложка
+                // 1. Темно-серая подложка (толстая)
                 WideArcShape()
-                    .stroke(Color.white.opacity(0.25), style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                    .stroke(Color.white.opacity(0.2), style: StrokeStyle(lineWidth: 8, lineCap: .round))
                 
                 // 2. Белая заполняющаяся дуга
                 WideArcShape()
                     .trim(from: 0, to: progress)
-                    .stroke(Color.white, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                    .stroke(Color.white, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                 
-                // 3. Точка на конце
+                // 3. Точка-маркер на конце
                 if !isStale && progress > 0.02 && progress < 0.98 {
                     Circle()
                         .fill(Color.white)
-                        .frame(width: 14, height: 14) // Точка крупнее
+                        .frame(width: 12, height: 12)
                         .position(
                             x: width / 2 + cos(Double.pi - Double(progress) * Double.pi) * radius,
                             y: centerY - sin(Double.pi - Double(progress) * Double.pi) * radius
@@ -126,24 +125,24 @@ struct FocusLiveActivity: Widget {
         ActivityConfiguration(for: FocusAttributes.self) { context in
             // Экран блокировки
             HStack(spacing: 14) {
-                FocusIcon(kind: context.state.kind, size: 22)
+                FocusIcon(kind: context.state.kind, size: 24)
                 FocusTime(state: context.state, stale: context.isStale)
                     .font(.focusTimer(40, weight: .light))
                 Spacer()
-                ThickRing(state: context.state, size: 30, lineWidth: 4)
+                ThickRing(state: context.state, size: 30, lineWidth: 5)
             }
             .padding()
             .activityBackgroundTint(.black)
         } dynamicIsland: { context in
             DynamicIsland {
-                // ── ЛЕВО: Иконка (строго в углу) ──
+                // ── ЛЕВО: Иконка ──
                 DynamicIslandExpandedRegion(.leading) {
-                    FocusIcon(kind: context.state.kind, size: 20)
+                    FocusIcon(kind: context.state.kind, size: 22)
                         .padding(.leading, 12)
-                        .padding(.top, 4)
+                        .padding(.top, 6)
                 }
                 
-                // ── ПРАВО: Текст (строго в углу, без обрезки) ──
+                // ── ПРАВО: Название ──
                 DynamicIslandExpandedRegion(.trailing) {
                     Text(context.state.kind.title)
                         .font(.system(size: 15, weight: .medium, design: .rounded))
@@ -151,30 +150,31 @@ struct FocusLiveActivity: Widget {
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .padding(.trailing, 12)
-                        .padding(.top, 4)
+                        .padding(.top, 6)
                 }
                 
-                // ── ЦЕНТР: Оставляем пустым (чтобы не сжимало дугу) ──
+                // ── ЦЕНТР: пусто, чтобы дуга не сплющивалась ──
                 DynamicIslandExpandedRegion(.center) {
                     EmptyView()
                 }
                 
-                // ── НИЗ: Вся широкая дуга + таймер ──
+                // ── НИЗ: Дуга + Таймер внутри ──
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(spacing: 2) {
-                        // Дуга растягивается на всю доступную ширину
+                    ZStack(alignment: .bottom) {
+                        // Сама дуга
                         WideArcProgress(state: context.state, isStale: context.isStale)
-                            .frame(height: 35)
-                            .padding(.horizontal, 20)
+                            .frame(height: 40)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 4)
                         
-                        // Таймер ровно под дугой
+                        // Таймер (ровно по центру внутри дуги)
                         FocusTime(state: context.state, stale: context.isStale)
-                            .offset(y: -8) // Поднимаем таймер, чтобы он был внутри дуги, как на референсе
+                            .offset(y: -2)
                     }
                     .padding(.bottom, 8)
                 }
             } compactLeading: {
-                FocusIcon(kind: context.state.kind, size: 16)
+                FocusIcon(kind: context.state.kind, size: 18)
             } compactTrailing: {
                 ThickRing(state: context.state, size: 22, lineWidth: 5)
             } minimal: {
