@@ -1,7 +1,7 @@
 import ActivityKit
 import SwiftUI
 import WidgetKit
-import Foundation // Важно для математических функций cos/sin
+import Foundation
 
 extension Font {
     static func focusTimer(_ size: CGFloat, weight: Font.Weight = .light) -> Font {
@@ -18,7 +18,7 @@ struct FocusTime: View {
             Text("Готово").font(.focusTimer(20, weight: .medium))
         } else {
             Text(timerInterval: state.start...state.end, countsDown: true)
-                .font(.focusTimer(36, weight: .medium))
+                .font(.focusTimer(34, weight: .medium))
                 .monospacedDigit()
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white)
@@ -30,8 +30,8 @@ struct FocusTime: View {
 struct WideArcShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let center = CGPoint(x: rect.midX, y: rect.maxY + 35)
-        let radius = min(rect.width / 2, rect.height + 35)
+        let center = CGPoint(x: rect.midX, y: rect.maxY + 30)
+        let radius = min(rect.width / 2, rect.height + 30)
         
         path.addArc(center: center, radius: radius,
                     startAngle: .degrees(180), endAngle: .degrees(0),
@@ -48,8 +48,8 @@ struct WideArcProgress: View {
         GeometryReader { geo in
             let width = geo.size.width
             let height = geo.size.height
-            let radius = min(width / 2, height + 35)
-            let centerY = height + 35
+            let radius = min(width / 2, height + 30)
+            let centerY = height + 30
             
             ZStack {
                 WideArcShape()
@@ -77,15 +77,12 @@ struct WideArcProgress: View {
         return CGFloat(1 - remaining / total)
     }
     
-    // Разбил математику на шаги, чтобы компилятор не сошел с ума
     private func markerPosition(width: CGFloat, centerY: CGFloat, radius: CGFloat) -> CGPoint {
         let angleDouble = Double.pi - (Double(progress) * Double.pi)
         let xOffset = CGFloat(cos(angleDouble)) * radius
         let yOffset = CGFloat(sin(angleDouble)) * radius
-        
         let x = width / 2 + xOffset
         let y = centerY - yOffset
-        
         return CGPoint(x: x, y: y)
     }
 }
@@ -128,6 +125,7 @@ struct ThickRing: View {
 struct FocusLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FocusAttributes.self) { context in
+            // Экран блокировки
             HStack(spacing: 14) {
                 FocusIcon(kind: context.state.kind, size: 24)
                 FocusTime(state: context.state, stale: context.isStale)
