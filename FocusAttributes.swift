@@ -35,3 +35,5 @@ struct FocusAttributes: ActivityAttributes {
     }
     var title: String
 }
+
+typealias FocusSnap = FocusAttributes.ContentState

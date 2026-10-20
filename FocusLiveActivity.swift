@@ -2,12 +2,11 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-typealias FocusState = FocusAttributes.ContentState
 
 let neon = Color.white
 
 struct FocusTime: View {
-    let state: FocusState
+    let state: FocusSnap
     let stale: Bool
 
     var body: some View {
@@ -22,7 +21,7 @@ struct FocusTime: View {
 }
 
 struct FocusRing: View {
-    let state: FocusState
+    let state: FocusSnap
     let size: CGFloat
 
     var body: some View {
@@ -49,7 +48,7 @@ struct FocusIcon: View {
 }
 
 struct RingOrCheck: View {
-    let state: FocusState
+    let state: FocusSnap
     let stale: Bool
     let size: CGFloat
 
