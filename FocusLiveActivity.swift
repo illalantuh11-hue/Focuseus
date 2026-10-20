@@ -1,6 +1,7 @@
 import ActivityKit
 import SwiftUI
 import WidgetKit
+import Foundation // Важно для математических функций cos/sin
 
 extension Font {
     static func focusTimer(_ size: CGFloat, weight: Font.Weight = .light) -> Font {
@@ -29,7 +30,6 @@ struct FocusTime: View {
 struct WideArcShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        // Делаем дугу более пологой, опуская центр ниже
         let center = CGPoint(x: rect.midX, y: rect.maxY + 35)
         let radius = min(rect.width / 2, rect.height + 35)
         
@@ -52,24 +52,18 @@ struct WideArcProgress: View {
             let centerY = height + 35
             
             ZStack {
-                // 1. Темно-серая подложка (толстая)
                 WideArcShape()
                     .stroke(Color.white.opacity(0.2), style: StrokeStyle(lineWidth: 8, lineCap: .round))
                 
-                // 2. Белая заполняющаяся дуга
                 WideArcShape()
                     .trim(from: 0, to: progress)
                     .stroke(Color.white, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                 
-                // 3. Точка-маркер на конце
                 if !isStale && progress > 0.02 && progress < 0.98 {
                     Circle()
                         .fill(Color.white)
                         .frame(width: 12, height: 12)
-                        .position(
-                            x: width / 2 + cos(Double.pi - Double(progress) * Double.pi) * radius,
-                            y: centerY - sin(Double.pi - Double(progress) * Double.pi) * radius
-                        )
+                        .position(markerPosition(width: width, centerY: centerY, radius: radius))
                 }
             }
         }
@@ -81,6 +75,18 @@ struct WideArcProgress: View {
         guard total > 0 else { return 0 }
         let remaining = max(0, state.end.timeIntervalSinceNow)
         return CGFloat(1 - remaining / total)
+    }
+    
+    // Разбил математику на шаги, чтобы компилятор не сошел с ума
+    private func markerPosition(width: CGFloat, centerY: CGFloat, radius: CGFloat) -> CGPoint {
+        let angleDouble = Double.pi - (Double(progress) * Double.pi)
+        let xOffset = CGFloat(cos(angleDouble)) * radius
+        let yOffset = CGFloat(sin(angleDouble)) * radius
+        
+        let x = width / 2 + xOffset
+        let y = centerY - yOffset
+        
+        return CGPoint(x: x, y: y)
     }
 }
 
@@ -95,7 +101,6 @@ struct FocusIcon: View {
     }
 }
 
-// === Компактное кольцо ===
 struct ThickRing: View {
     let state: FocusSnap
     let size: CGFloat
@@ -123,7 +128,6 @@ struct ThickRing: View {
 struct FocusLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FocusAttributes.self) { context in
-            // Экран блокировки
             HStack(spacing: 14) {
                 FocusIcon(kind: context.state.kind, size: 24)
                 FocusTime(state: context.state, stale: context.isStale)
@@ -135,14 +139,12 @@ struct FocusLiveActivity: Widget {
             .activityBackgroundTint(.black)
         } dynamicIsland: { context in
             DynamicIsland {
-                // ── ЛЕВО: Иконка ──
                 DynamicIslandExpandedRegion(.leading) {
                     FocusIcon(kind: context.state.kind, size: 22)
                         .padding(.leading, 12)
                         .padding(.top, 6)
                 }
                 
-                // ── ПРАВО: Название ──
                 DynamicIslandExpandedRegion(.trailing) {
                     Text(context.state.kind.title)
                         .font(.system(size: 15, weight: .medium, design: .rounded))
@@ -153,21 +155,17 @@ struct FocusLiveActivity: Widget {
                         .padding(.top, 6)
                 }
                 
-                // ── ЦЕНТР: пусто, чтобы дуга не сплющивалась ──
                 DynamicIslandExpandedRegion(.center) {
                     EmptyView()
                 }
                 
-                // ── НИЗ: Дуга + Таймер внутри ──
                 DynamicIslandExpandedRegion(.bottom) {
                     ZStack(alignment: .bottom) {
-                        // Сама дуга
                         WideArcProgress(state: context.state, isStale: context.isStale)
                             .frame(height: 40)
                             .padding(.horizontal, 16)
                             .padding(.bottom, 4)
                         
-                        // Таймер (ровно по центру внутри дуги)
                         FocusTime(state: context.state, stale: context.isStale)
                             .offset(y: -2)
                     }
