@@ -15,7 +15,7 @@ final class FocusController: ObservableObject {
         startDate = now
         endDate = end
         if ActivityAuthorizationInfo().areActivitiesEnabled {
-            let content = ActivityContent(state: FocusState(start: now, end: end, kind: kind), staleDate: end)
+            let content = ActivityContent(state: FocusSnap(start: now, end: end, kind: kind), staleDate: end)
             activity = try? Activity.request(attributes: FocusAttributes(title: "Фокус"), content: content)
         }
         scheduleNotification(after: Double(minutes) * 60)
