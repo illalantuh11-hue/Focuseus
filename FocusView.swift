@@ -15,7 +15,7 @@ final class FocusController: ObservableObject {
         startDate = now
         endDate = end
         if ActivityAuthorizationInfo().areActivitiesEnabled {
-            let content = ActivityContent(state: FocusSnap(start: now, end: end, kind: kind), staleDate: end)
+            let content = ActivityContent(state: FocusState(start: now, end: end, kind: kind), staleDate: end)
             activity = try? Activity.request(attributes: FocusAttributes(title: "Фокус"), content: content)
         }
         scheduleNotification(after: Double(minutes) * 60)
@@ -42,13 +42,19 @@ final class FocusController: ObservableObject {
     }
 }
 
+extension Font {
+    static func focusTimer(_ size: CGFloat, weight: Font.Weight = .light) -> Font {
+        .system(size: size, weight: weight, design: .rounded)
+    }
+}
+
 struct FocusView: View {
     @StateObject private var f = FocusController()
     private let options = [15, 25, 50, 90]
 
     private func pill(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 17, weight: .light))
+            .font(.system(size: 17, weight: .medium, design: .rounded))
             .foregroundStyle(.white)
             .padding(.horizontal, 36)
             .padding(.vertical, 13)
@@ -63,19 +69,19 @@ struct FocusView: View {
                 if let end = f.endDate {
                     Image(systemName: f.kind.symbol).font(.system(size: 26, weight: .light))
                     Text(timerInterval: f.startDate...end, countsDown: true)
-                        .font(.system(size: 76, weight: .ultraLight))
+                        .font(.focusTimer(76, weight: .light))
                         .monospacedDigit()
                         .multilineTextAlignment(.center)
                     Button { f.stop() } label: { pill("Завершить") }
                 } else {
                     Text(String(format: "%d:00", f.minutes))
-                        .font(.system(size: 76, weight: .ultraLight))
+                        .font(.focusTimer(76, weight: .light))
                         .monospacedDigit()
                     HStack(spacing: 26) {
                         ForEach(options, id: \.self) { m in
                             Button { f.minutes = m } label: {
                                 Text("\(m)")
-                                    .font(.system(size: 20, weight: .light))
+                                    .font(.system(size: 20, weight: .medium, design: .rounded))
                                     .opacity(f.minutes == m ? 1 : 0.35)
                             }
                         }
@@ -90,7 +96,7 @@ struct FocusView: View {
                         }
                     }
                     Text(f.kind.title)
-                        .font(.system(size: 14, weight: .light))
+                        .font(.system(size: 14, weight: .regular, design: .rounded))
                         .foregroundStyle(.white.opacity(0.6))
                     Button { f.start() } label: { pill("Начать") }
                 }
