@@ -2,7 +2,6 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-typealias FocusState = FocusAttributes.ContentState
 let neon = Color.white
 
 extension Font {
@@ -12,8 +11,9 @@ extension Font {
 }
 
 struct FocusTime: View {
-    let state: FocusState
+    let state: FocusSnap
     let stale: Bool
+
     var body: some View {
         if stale {
             Text("Готово").font(.focusTimer(20, weight: .medium))
@@ -26,18 +26,18 @@ struct FocusTime: View {
     }
 }
 
-// === ПРАВИЛЬНАЯ ДУГА ДЛЯ EXPANDED ===
+// === ДУГА ДЛЯ EXPANDED ===
 struct ExpandedArc: View {
-    let state: FocusState
+    let state: FocusSnap
     let isStale: Bool
 
     var body: some View {
         ZStack {
-            // Фоновая дуга (серая)
+            // Серая подложка
             ArcShape()
                 .stroke(Color.white.opacity(0.25), style: StrokeStyle(lineWidth: 5, lineCap: .round))
-
-            // Системный прогресс, который плавно двигается сам
+            
+            // Системный прогресс (чтобы плавно тикал) + маска в виде дуги
             ProgressView(timerInterval: state.start...state.end, countsDown: false) {
                 EmptyView()
             } currentValueLabel: {
@@ -45,15 +45,13 @@ struct ExpandedArc: View {
             }
             .progressViewStyle(.circular)
             .tint(neon)
-            .frame(width: 60, height: 60) // Размер будет обрезан маской
-            .scaleEffect(1.0)
+            .frame(width: 60, height: 60)
             .mask(ArcShape().stroke(style: StrokeStyle(lineWidth: 5, lineCap: .round)))
             .softNeon(6)
         }
     }
 }
 
-// Форма дуги (полукруг)
 struct ArcShape: Shape {
     func path(in rect: CGRect) -> Path {
         var p = Path()
@@ -69,6 +67,7 @@ struct ArcShape: Shape {
 struct FocusIcon: View {
     let kind: FocusKind
     var size: CGFloat = 15
+
     var body: some View {
         Image(systemName: kind.symbol)
             .font(.system(size: size, weight: .semibold))
@@ -76,10 +75,27 @@ struct FocusIcon: View {
     }
 }
 
+struct FocusRing: View {
+    let state: FocusSnap
+    let size: CGFloat
+
+    var body: some View {
+        ProgressView(timerInterval: state.start...state.end, countsDown: true) {
+            EmptyView()
+        } currentValueLabel: {
+            EmptyView()
+        }
+        .progressViewStyle(.circular)
+        .tint(neon)
+        .frame(width: size, height: size)
+    }
+}
+
 struct RingOrCheck: View {
-    let state: FocusState
+    let state: FocusSnap
     let stale: Bool
     let size: CGFloat
+
     var body: some View {
         if stale {
             Image(systemName: "checkmark")
@@ -91,22 +107,9 @@ struct RingOrCheck: View {
     }
 }
 
-struct FocusRing: View {
-    let state: FocusState
-    let size: CGFloat
-    var body: some View {
-        ProgressView(timerInterval: state.start...state.end, countsDown: true) {
-            EmptyView()
-        } currentValueLabel: { EmptyView() }
-        .progressViewStyle(.circular)
-        .tint(neon)
-        .frame(width: size, height: size)
-    }
-}
-
-// === ПРАВИЛЬНОЕ ТОЛСТОЕ КОЛЬЦО ДЛЯ COMPACT ===
+// === ТОЛСТОЕ КОЛЬЦО ДЛЯ COMPACT ===
 struct ThickRing: View {
-    let state: FocusState
+    let state: FocusSnap
     let size: CGFloat
     let lineWidth: CGFloat
 
@@ -114,14 +117,16 @@ struct ThickRing: View {
         ZStack {
             Circle().stroke(Color.white.opacity(0.15), lineWidth: lineWidth)
             
-            // Системный прогресс, растянутый для толщины
+            // Системный прогресс, растянутый через scaleEffect
             ProgressView(timerInterval: state.start...state.end, countsDown: true) {
                 EmptyView()
-            } currentValueLabel: { EmptyView() }
+            } currentValueLabel: {
+                EmptyView()
+            }
             .progressViewStyle(.circular)
             .tint(neon)
             .frame(width: size, height: size)
-            .scaleEffect(1.0 + (lineWidth / size) * 0.8) // Растягиваем системную линию
+            .scaleEffect(1.0 + (lineWidth / size) * 0.8)
         }
         .frame(width: size, height: size)
     }
@@ -152,14 +157,15 @@ struct FocusLiveActivity: Widget {
             .activityBackgroundTint(.black)
         } dynamicIsland: { context in
             DynamicIsland {
-
+                // ── СЛЕВА: иконка ──
                 DynamicIslandExpandedRegion(.leading) {
                     FocusIcon(kind: context.state.kind, size: 20)
                         .softNeon(4)
                         .padding(.leading, 4)
                         .padding(.top, 2)
                 }
-
+                
+                // ── СПРАВА: Name (название категории) ──
                 DynamicIslandExpandedRegion(.trailing) {
                     Text(context.state.kind.title)
                         .font(.system(size: 15, weight: .medium, design: .rounded))
@@ -167,7 +173,8 @@ struct FocusLiveActivity: Widget {
                         .padding(.trailing, 6)
                         .padding(.top, 2)
                 }
-
+                
+                // ── ЦЕНТР: Fills up + дуга + таймер ──
                 DynamicIslandExpandedRegion(.center) {
                     VStack(spacing: -6) {
                         Text("Fills up")
@@ -177,7 +184,6 @@ struct FocusLiveActivity: Widget {
                             .padding(.leading, 14)
 
                         ZStack(alignment: .bottom) {
-                            // Дуга (обрезанная маской системного прогресса)
                             ExpandedArc(state: context.state, isStale: context.isStale)
                                 .frame(height: 30)
                                 .padding(.horizontal, 6)
@@ -188,18 +194,21 @@ struct FocusLiveActivity: Widget {
                         }
                     }
                 }
-
+                
                 DynamicIslandExpandedRegion(.bottom) {
                     EmptyView()
                 }
-
             } compactLeading: {
-                FocusIcon(kind: context.state.kind, size: 15).softNeon(6)
+                // ── COMPACT LEFT: иконка + неон ──
+                FocusIcon(kind: context.state.kind, size: 15)
+                    .softNeon(6)
             } compactTrailing: {
-                // Толстое кольцо с системной анимацией
-                ThickRing(state: context.state, size: 22, lineWidth: 6).softNeon(8)
+                // ── COMPACT RIGHT: толстое кольцо + неон ──
+                ThickRing(state: context.state, size: 22, lineWidth: 6)
+                    .softNeon(8)
             } minimal: {
-                ThickRing(state: context.state, size: 20, lineWidth: 5).softNeon(6)
+                ThickRing(state: context.state, size: 20, lineWidth: 5)
+                    .softNeon(6)
             }
         }
     }
