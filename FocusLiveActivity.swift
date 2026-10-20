@@ -2,8 +2,6 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-let neon = Color.white
-
 extension Font {
     static func focusTimer(_ size: CGFloat, weight: Font.Weight = .light) -> Font {
         .system(size: size, weight: weight, design: .rounded)
@@ -16,31 +14,33 @@ struct FocusTime: View {
 
     var body: some View {
         if stale {
-            Text("Готово").font(.focusTimer(16, weight: .medium))
+            Text("Готово").font(.focusTimer(22, weight: .medium))
         } else {
             Text(timerInterval: state.start...state.end, countsDown: true)
-                .font(.focusTimer(22, weight: .medium))
+                .font(.focusTimer(36, weight: .regular)) // Сделал чуть больше и плотнее
                 .monospacedDigit()
                 .multilineTextAlignment(.center)
+                .foregroundStyle(.white)
         }
     }
 }
 
-// === Дуга ===
-struct ArcShape: Shape {
+// === Форма широкой дуги ===
+struct WideArcShape: Shape {
     func path(in rect: CGRect) -> Path {
-        var p = Path()
-        // Центр смещен вниз, чтобы дуга была более пологой
-        let center = CGPoint(x: rect.midX, y: rect.maxY + 12)
-        let radius = min(rect.width / 2, rect.height)
-        p.addArc(center: center, radius: radius,
-                 startAngle: .degrees(180), endAngle: .degrees(0),
-                 clockwise: false)
-        return p
+        var path = Path()
+        // Центр берем далеко внизу, чтобы дуга была пологой (как мост)
+        let center = CGPoint(x: rect.midX, y: rect.maxY + 30)
+        let radius = min(rect.width / 2, rect.height + 30)
+        
+        path.addArc(center: center, radius: radius,
+                    startAngle: .degrees(180), endAngle: .degrees(0),
+                    clockwise: false)
+        return path
     }
 }
 
-struct WhiteArcProgress: View {
+struct WideArcProgress: View {
     let state: FocusSnap
     let isStale: Bool
 
@@ -48,25 +48,29 @@ struct WhiteArcProgress: View {
         GeometryReader { geo in
             let width = geo.size.width
             let height = geo.size.height
+            // Вычисляем радиус и угол для позиции белой точки
+            let radius = min(width / 2, height + 30)
+            let centerY = height + 30
             
             ZStack {
-                // 1. Фоновая дуга (белая, но полупрозрачная)
-                ArcShape()
-                    .stroke(Color.white.opacity(0.2), style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                // 1. Темно-серая подложка
+                WideArcShape()
+                    .stroke(Color.white.opacity(0.25), style: StrokeStyle(lineWidth: 10, lineCap: .round))
                 
-                // 2. Заполненная дуга (ярко-белая)
-                ArcShape()
+                // 2. Белая заполняющаяся дуга
+                WideArcShape()
                     .trim(from: 0, to: progress)
-                    .stroke(Color.white, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .stroke(Color.white, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                 
-                // 3. Точка на конце (белая с черной обводкой для контраста)
+                // 3. Точка на конце
                 if !isStale && progress > 0.02 && progress < 0.98 {
                     Circle()
                         .fill(Color.white)
-                        .frame(width: 8, height: 8)
-                        .overlay(Circle().stroke(Color.black, lineWidth: 2)) // Черная обводка, чтобы точка не сливалась с дугой
-                        .offset(x: markerX(width: width, height: height),
-                                y: markerY(width: width, height: height) - height/2)
+                        .frame(width: 14, height: 14) // Точка крупнее
+                        .position(
+                            x: width / 2 + cos(Double.pi - Double(progress) * Double.pi) * radius,
+                            y: centerY - sin(Double.pi - Double(progress) * Double.pi) * radius
+                        )
                 }
             }
         }
@@ -78,18 +82,6 @@ struct WhiteArcProgress: View {
         guard total > 0 else { return 0 }
         let remaining = max(0, state.end.timeIntervalSinceNow)
         return CGFloat(1 - remaining / total)
-    }
-
-    private func markerX(width: CGFloat, height: CGFloat) -> CGFloat {
-        let angle = Double.pi - (Double(progress) * Double.pi)
-        let radius = min(width / 2, height)
-        return CGFloat(cos(angle)) * radius
-    }
-
-    private func markerY(width: CGFloat, height: CGFloat) -> CGFloat {
-        let angle = Double.pi - (Double(progress) * Double.pi)
-        let radius = min(width / 2, height)
-        return -CGFloat(sin(angle)) * radius
     }
 }
 
@@ -104,7 +96,7 @@ struct FocusIcon: View {
     }
 }
 
-// === Компактное кольцо (тоже белое) ===
+// === Компактное кольцо ===
 struct ThickRing: View {
     let state: FocusSnap
     let size: CGFloat
@@ -137,7 +129,6 @@ struct FocusLiveActivity: Widget {
                 FocusIcon(kind: context.state.kind, size: 22)
                 FocusTime(state: context.state, stale: context.isStale)
                     .font(.focusTimer(40, weight: .light))
-                    .foregroundStyle(.white)
                 Spacer()
                 ThickRing(state: context.state, size: 30, lineWidth: 4)
             }
@@ -145,36 +136,42 @@ struct FocusLiveActivity: Widget {
             .activityBackgroundTint(.black)
         } dynamicIsland: { context in
             DynamicIsland {
-                // ── ЛЕВО: Иконка ──
+                // ── ЛЕВО: Иконка (строго в углу) ──
                 DynamicIslandExpandedRegion(.leading) {
                     FocusIcon(kind: context.state.kind, size: 20)
-                        .padding(.leading, 8)
-                        .padding(.top, 2)
+                        .padding(.leading, 12)
+                        .padding(.top, 4)
                 }
                 
-                // ── ПРАВО: Название в углу ──
+                // ── ПРАВО: Текст (строго в углу, без обрезки) ──
                 DynamicIslandExpandedRegion(.trailing) {
                     Text(context.state.kind.title)
                         .font(.system(size: 15, weight: .medium, design: .rounded))
                         .foregroundStyle(.white)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .padding(.trailing, 8)
-                        .padding(.top, 2)
+                        .minimumScaleFactor(0.8)
+                        .padding(.trailing, 12)
+                        .padding(.top, 4)
                 }
                 
-                // ── ЦЕНТР: Дуга ──
+                // ── ЦЕНТР: Оставляем пустым (чтобы не сжимало дугу) ──
                 DynamicIslandExpandedRegion(.center) {
-                    WhiteArcProgress(state: context.state, isStale: context.isStale)
-                        .frame(height: 40)
-                        .padding(.horizontal, 12)
-                        .padding(.top, 8)
+                    EmptyView()
                 }
                 
-                // ── НИЗ: Таймер ──
+                // ── НИЗ: Вся широкая дуга + таймер ──
                 DynamicIslandExpandedRegion(.bottom) {
-                    FocusTime(state: context.state, stale: context.isStale)
-                        .offset(y: -4)
+                    VStack(spacing: 2) {
+                        // Дуга растягивается на всю доступную ширину
+                        WideArcProgress(state: context.state, isStale: context.isStale)
+                            .frame(height: 35)
+                            .padding(.horizontal, 20)
+                        
+                        // Таймер ровно под дугой
+                        FocusTime(state: context.state, stale: context.isStale)
+                            .offset(y: -8) // Поднимаем таймер, чтобы он был внутри дуги, как на референсе
+                    }
+                    .padding(.bottom, 8)
                 }
             } compactLeading: {
                 FocusIcon(kind: context.state.kind, size: 16)
