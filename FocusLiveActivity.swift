@@ -58,7 +58,10 @@ struct FocusRing: View {
     var body: some View {
         ZStack {
             one(size)
-            one(size - 3)
+            Circle()
+                .fill(neon)
+                .frame(width: max(size * 0.2, 3), height: max(size * 0.2, 3))
+                .shadow(color: neon.opacity(0.9), radius: 2)
         }
         .frame(width: size, height: size)
         .shadow(color: neon.opacity(glow > 0 ? 0.9 : 0), radius: 2)
@@ -183,10 +186,10 @@ struct FocusLiveActivity: Widget {
             } compactLeading: {
                 FocusIcon(kind: context.state.kind, size: 16, glow: false)
                     .frame(width: 20, height: 20)
+                    .padding(.leading, 3)
             } compactTrailing: {
                 RingOrCheck(state: context.state, stale: context.isStale, size: 20)
                     .frame(width: 20, height: 20)
-                    .padding(.trailing, 3)
             } minimal: {
                 FocusRing(state: context.state, size: 18, glow: 0)
                     .frame(width: 20, height: 20)
